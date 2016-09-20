@@ -3,24 +3,34 @@
 
 #include <vector>
 #include <map>
-#include <string>
-#include <memory>
-#include "graph.h"
+#include <utility>
+#include <iostream>
+
+typedef std::pair<std::vector<unsigned int>, std::vector<unsigned int>> Flock;
 
 namespace splittercell {
-    template <typename T>
     class Distribution {
     public:
-        Distribution(const Graph &graph, const std::vector<std::vector<std::string>> &flocks);
-        Distribution(const Distribution<T> &other);
+        Distribution(const std::vector<Flock> &flocks);
+        Distribution(const Distribution &other);
 
-        const T &operator[](const std::string &model) const;
-        T &operator[](const std::string &model);
+        void refine(unsigned int argument, bool positive, double coefficient);
+
+        void set_flock_probabilities(unsigned int flock, const std::vector<double> &probabilities) { _distribution[flock] = probabilities; }
+        const std::vector<std::vector<double>>& distribution() const { return _distribution; }
+
+        std::string to_str() const;
+
+        double operator[](const std::string &model) const;
+        double operator[](const unsigned int &argument) const;
 
     private:
-        std::vector<std::vector<T>> _distribution;
-        std::multimap<std::string, std::pair<unsigned long, unsigned long>> _mapping;
+        std::vector<std::vector<double>> _distribution;
+        std::map<unsigned int, std::pair<unsigned int, unsigned int>> _mapping;
+        std::map<unsigned int, unsigned int> _sizes;
     };
+
+    std::ostream& operator<<(std::ostream &os, const Distribution &dist);
 }
 
 
