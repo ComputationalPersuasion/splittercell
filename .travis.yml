@@ -1,5 +1,5 @@
 language: cpp
 install: git submodule update --remote
 script:
-    - cmake -D BUILD_TESTS=ON && make 
+    - cmake -DBUILD_TESTS=ON && make
     - ./tests/sctests
