@@ -1,1 +1,1 @@
-# splittercell
+# splittercell [![Build Status](https://travis-ci.org/ComputationalPersuasion/splittercell.svg?branch=master)](https://travis-ci.org/ComputationalPersuasion/splittercell)
