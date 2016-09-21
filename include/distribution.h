@@ -11,9 +11,13 @@
 #include <boost/dynamic_bitset.hpp>
 #include <sstream>
 
-typedef std::pair<std::vector<unsigned int>, std::vector<unsigned int>> Flock;
-
 namespace splittercell {
+    struct Flock {
+        Flock(std::initializer_list<unsigned int> args, std::initializer_list<unsigned int> cond) :
+                conditioned(args), conditioning(cond){}
+        std::vector<unsigned int> conditioned, conditioning;
+    };
+
     class Distribution {
     public:
         Distribution(const std::vector<Flock> &flocks);
@@ -38,11 +42,11 @@ namespace splittercell {
             _distribution(flocks.size()) {
         unsigned int flock_index = 0;
         for (auto flock : flocks) {
-            unsigned int arg_index = 0, flock_size = (unsigned int) (flock.first.size() + flock.second.size());
+            unsigned int arg_index = 0, flock_size = (unsigned int) (flock.conditioned.size() + flock.conditioning.size());
             if (flock_size > std::numeric_limits<unsigned int>::digits)
                 throw std::overflow_error("Too many arguments in the flock.");
             _sizes.emplace(flock_index, flock_size);
-            for (auto conditioned : flock.first) {
+            for (auto conditioned : flock.conditioned) {
                 if (_mapping.find(conditioned) != _mapping.end())
                     throw std::invalid_argument("An argument cannot be in different flocks.");
                 _mapping.emplace(conditioned, std::make_pair(flock_index, arg_index));

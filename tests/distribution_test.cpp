@@ -4,7 +4,7 @@
 class DistributionTest: public ::testing::Test {
 public:
     virtual void SetUp() {
-        dist = new splittercell::Distribution({{{0,1}, {}}});
+        dist = new splittercell::Distribution({splittercell::Flock({0,1}, {0})});
         dist->set_flock_probabilities(0, {0.1, 0.2, 0.1, 0.6});
     }
 
