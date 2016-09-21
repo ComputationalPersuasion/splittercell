@@ -17,7 +17,6 @@ namespace splittercell {
     class Distribution {
     public:
         Distribution(const std::vector<Flock> &flocks);
-        Distribution(const Distribution &other);
 
         void refine(unsigned int argument, bool positive, double coefficient);
 
@@ -53,11 +52,6 @@ namespace splittercell {
             flock_index++;
         }
     }
-
-    Distribution::Distribution(const Distribution &other) :
-            _distribution(other._distribution),
-            _mapping(other._mapping),
-            _sizes(other._sizes) {}
 
     void Distribution::refine(unsigned int argument, bool positive, double coefficient) {
         unsigned int flock_ind, arg_ind_in_flock;
