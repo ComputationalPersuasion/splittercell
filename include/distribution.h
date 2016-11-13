@@ -63,7 +63,7 @@ namespace splittercell {
         if(_size > (limit - 2))
             throw std::overflow_error("Too many arguments in the flock.");
         unsigned int num_of_models = (unsigned int)(1 << _size);
-        double initial_belief      = 1.0 / num_of_models;
+        double initial_belief      = 1.0 * (1 << _conditioning.size()) / num_of_models;
         if(_distribution.empty()) {
             _distribution = std::vector<double>(num_of_models, initial_belief);
             _uniform      = true; //If the distribution is not uniform, we cannot cache 0.5 as a belief for the arguments in this flock
