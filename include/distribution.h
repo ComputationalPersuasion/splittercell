@@ -13,7 +13,9 @@
 #include <boost/dynamic_bitset.hpp>
 #include <sstream>
 #include <memory>
+#include <thread>
 #include <future>
+#include <functional>
 #include <algorithm>
 
 namespace splittercell {
@@ -29,10 +31,10 @@ namespace splittercell {
         const std::vector<unsigned int> &conditioning() const {return _conditioning;}
         bool uniform() const {return _uniform;}
         /* Modifiers*/
-        void refine(unsigned int argument, bool positive, double coefficient);
-        std::shared_ptr<Flock> marginalize(const std::vector<unsigned int> &args_to_keep) const;
-        void marginalize_self(const std::vector<unsigned int> &args_to_keep);
-        std::shared_ptr<Flock> combine(const std::shared_ptr<Flock> &flock) const;
+        void refine(unsigned int argument, bool positive, double coefficient, bool mt = true);
+        std::shared_ptr<Flock> marginalize(const std::vector<unsigned int> &args_to_keep, bool mt = true) const;
+        void marginalize_self(const std::vector<unsigned int> &args_to_keep, bool mt = true);
+        std::shared_ptr<Flock> combine(const std::shared_ptr<Flock> &flock, bool mt = true) const;
 
         std::string to_str() const;
         bool operator==(const Flock &other) const {return (_conditioned == other._conditioned) &&
@@ -46,7 +48,12 @@ namespace splittercell {
         bool _uniform;
 
         void map_arguments();
-        std::vector<double> marginalized_distribution(const std::vector<unsigned int> &args_to_keep) const;
+        std::vector<double> marginalized_distribution(const std::vector<unsigned int> &args_to_keep, bool mt) const;
+        void mt_refine(unsigned int index, bool positive, double coefficient, unsigned int startindex, unsigned int endindex);
+        void mt_marginalize(std::vector<double> &distribution, const std::map<unsigned int, unsigned int> &mapping, unsigned int startindex, unsigned int endindex) const;
+        void mt_combine(const std::shared_ptr<Flock> &combinedflock, const std::shared_ptr<Flock> &flock, const std::unordered_map<unsigned int,
+                std::pair<unsigned int, unsigned int>> &splitindex, unsigned int startindex, unsigned int endindex) const;
+        void perform_mt(unsigned int bound, std::function<void(unsigned int, unsigned int)> t) const;
     };
 
     /********************** Implementation ************************/
@@ -73,11 +80,18 @@ namespace splittercell {
         return s;
     }
 
-    void Flock::refine(unsigned int argument, bool positive, double coefficient) {
+    void Flock::refine(unsigned int argument, bool positive, double coefficient, bool mt) {
         unsigned int index = _mapping[argument];
         if(index >= _conditioned.size())
             throw std::invalid_argument("Only conditioned arguments can be refined.");
-        for (unsigned int i = 0; i < _distribution.size(); i++) {
+        if(_size < 15 || !mt)
+            mt_refine(index, positive, coefficient, 0, _distribution.size());
+        else
+            perform_mt(_distribution.size(), std::bind(&Flock::mt_refine, this, index, positive, coefficient, std::placeholders::_1, std::placeholders::_2));
+    }
+
+    void Flock::mt_refine(unsigned int index, bool positive, double coefficient, unsigned int startindex, unsigned int endindex) {
+        for (unsigned int i = startindex; i < endindex; i++) {
             boost::dynamic_bitset<> binary(_size, i); //Current model in binary notation
             if (binary.test(index) == positive) { //If the model satisfies argument+side of update
                 unsigned int opposite = (unsigned int) binary.flip(index).to_ulong(); //Closest model not satisfying
@@ -88,7 +102,7 @@ namespace splittercell {
         }
     }
 
-    std::vector<double> Flock::marginalized_distribution(const std::vector<unsigned int> &args_to_keep) const {
+    std::vector<double> Flock::marginalized_distribution(const std::vector<unsigned int> &args_to_keep, bool mt) const {
         /* New mapping creation (because marginalization put holes in the previous one) */
         unsigned int index = 0;
         std::map<unsigned int, unsigned int> mapping;
@@ -104,26 +118,35 @@ namespace splittercell {
         /* Actual marginalization */
         unsigned int marginalized_size = (unsigned int)(1 << mapping.size());
         auto distribution = std::vector<double>(marginalized_size, 0.0);
-        for(unsigned int i = 0; i < _distribution.size(); i++) {
+
+        if(_size < 15 || !mt)
+            mt_marginalize(distribution, mapping, 0, _distribution.size());
+        else
+            perform_mt(_distribution.size(), std::bind(&Flock::mt_marginalize, this, std::ref(distribution), std::cref(mapping), std::placeholders::_1, std::placeholders::_2));
+
+        return distribution;
+    }
+
+    void Flock::mt_marginalize(std::vector<double> &distribution, const std::map<unsigned int, unsigned int> &mapping, unsigned int startindex, unsigned int endindex) const {
+        for(unsigned int i = startindex; i < endindex; i++) {
             boost::dynamic_bitset<> start(_size, i), end(mapping.size(), 0);
             for(auto map : mapping)
                 end.set(map.second, start[map.first]);
             distribution[end.to_ulong()] += _distribution[i];
         }
-        return distribution;
     }
 
-    std::shared_ptr<Flock> Flock::marginalize(const std::vector<unsigned int> &args_to_keep) const {
-        return std::make_shared<Flock>(args_to_keep, _conditioning, marginalized_distribution(args_to_keep));
+    std::shared_ptr<Flock> Flock::marginalize(const std::vector<unsigned int> &args_to_keep, bool mt) const {
+        return std::make_shared<Flock>(args_to_keep, _conditioning, marginalized_distribution(args_to_keep, mt));
     }
 
-    void Flock::marginalize_self(const std::vector<unsigned int> &args_to_keep) {
+    void Flock::marginalize_self(const std::vector<unsigned int> &args_to_keep, bool mt) {
         _conditioned  = args_to_keep;
-        _distribution = marginalized_distribution(args_to_keep);
+        _distribution = marginalized_distribution(args_to_keep, mt);
         map_arguments();
     }
 
-    std::shared_ptr<Flock> Flock::combine(const std::shared_ptr<Flock> &flock) const {
+    std::shared_ptr<Flock> Flock::combine(const std::shared_ptr<Flock> &flock, bool mt) const {
         /* Combined flock creation */
         std::vector<unsigned int> conditioned, conditioning;
         conditioned.insert(conditioned.end(), _conditioned.cbegin(), _conditioned.cend());
@@ -149,11 +172,21 @@ namespace splittercell {
             splitindex.emplace(combinedflock->_mapping[arg], std::make_pair<>(indexself, indexother));
         }
 
-        /* Actual combination */
-        for(unsigned int i = 0; i < (unsigned int)(1 << combinedflock->size()); i++) {
+        if(combinedflock->size() < 15 || !mt)
+            mt_combine(combinedflock, flock, splitindex, 0, 1 << combinedflock->size());
+        else
+            perform_mt(combinedflock->distribution().size(),
+                       std::bind(&Flock::mt_combine, this, std::cref(combinedflock), std::cref(flock), std::cref(splitindex), std::placeholders::_1, std::placeholders::_2));
+
+        return combinedflock;
+    }
+
+    void Flock::mt_combine(const std::shared_ptr<Flock> &combinedflock, const std::shared_ptr<Flock> &flock, const std::unordered_map<unsigned int,
+            std::pair<unsigned int, unsigned int>> &splitindex, unsigned int startindex, unsigned int endindex) const {
+        for(unsigned int i = startindex; i < endindex; i++) {
             boost::dynamic_bitset<> start(combinedflock->size(), i), end1(_size, 0), end2(flock->size(), 0);
             for(unsigned int j = 0; j < start.size(); j++) {
-                auto indexes = splitindex[j];
+                auto indexes = splitindex.at(j);
                 if(indexes.first != 0)
                     end1[indexes.first-1] = start[j]; //-1 because of +1 above
                 if(indexes.second != 0)
@@ -161,7 +194,16 @@ namespace splittercell {
             }
             combinedflock->_distribution[i] = _distribution[end1.to_ulong()] * flock->_distribution[end2.to_ulong()];
         }
-        return combinedflock;
+    }
+
+    void Flock::perform_mt(unsigned int bound, std::function<void(unsigned int, unsigned int)> t) const {
+        unsigned int numThreads = std::thread::hardware_concurrency();
+        unsigned int range = bound / numThreads;
+        std::vector<std::thread> threads;
+        for(unsigned int i = 0; i < numThreads; i++)
+            threads.push_back(std::thread(t, i * range, (i + 1) * range));
+        for(auto &th : threads)
+            th.join();
     }
 
     /* Mapping argument <-> index to be (somewhat) order agnostic, except conditioned first, then conditioning */
@@ -187,13 +229,14 @@ namespace splittercell {
                 _cache_is_valid[arg] = false;
         }
         std::shared_ptr<Flock> flock(unsigned int flock) const {return _flocks.at(flock);}
+        void disable_mt() {_mt = false;}
         /* Modifiers */
         void refine(unsigned int argument, bool positive, double coefficient) {
-            _flocks[_mapping[argument]]->refine(argument, positive, coefficient);
+            _flocks[_mapping[argument]]->refine(argument, positive, coefficient, _mt);
             _cache_is_valid[argument] = false;
         }
         std::shared_ptr<Flock> marginalize(unsigned int flock, const std::vector<unsigned int> &args_to_keep) {
-            return _flocks[flock]->marginalize(args_to_keep);
+            return _flocks[flock]->marginalize(args_to_keep, _mt);
         }
 
         std::string to_str() const;
@@ -203,6 +246,7 @@ namespace splittercell {
         std::unordered_map<unsigned int, unsigned int> _mapping;
         std::unordered_map<unsigned int, double> _belief_cache;
         std::unordered_map<unsigned int, bool> _cache_is_valid;
+        bool _mt;
 
         void find_conditioning(unsigned int argument, std::set<unsigned int> &conditioning) const;
         std::shared_ptr<Flock> find_and_combine(const std::vector<unsigned int> &arguments) const;
@@ -210,7 +254,7 @@ namespace splittercell {
 
     /********************** Implementation ************************/
 
-    Distribution::Distribution(const std::vector<std::shared_ptr<Flock>> &flocks) : _flocks(flocks) {
+    Distribution::Distribution(const std::vector<std::shared_ptr<Flock>> &flocks) : _flocks(flocks), _mt(true) {
         unsigned int flock_index = 0;
         for (auto flock : _flocks) {
             for (auto conditioned : flock->conditioned()) {
@@ -236,7 +280,7 @@ namespace splittercell {
             else {
                 if(flock == nullptr)
                     flock = find_and_combine(arguments);
-                beliefs[arg] = flock->marginalize({arg})->distribution()[1];
+                beliefs[arg] = flock->marginalize({arg}, _mt)->distribution()[1];
             }
         }
 
@@ -270,14 +314,14 @@ namespace splittercell {
             if(combined->size() + next->size() > limit) {
                 auto all = std::vector<unsigned int>(arguments);
                 all.insert(all.cend(), conditioning_args.cbegin(), conditioning_args.cend());
-                combined = combined->marginalize(all);
-                next = next->marginalize(all);
+                combined = combined->marginalize(all, _mt);
+                next = next->marginalize(all, _mt);
             }
-            combined = combined->combine(next);
+            combined = combined->combine(next, _mt);
             ++it;
         }
 
-        return combined->marginalize(arguments);
+        return combined->marginalize(arguments, _mt);
     }
 
     std::string Distribution::to_str() const {
