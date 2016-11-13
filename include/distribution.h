@@ -27,6 +27,7 @@ namespace splittercell {
         void set_probabilities(const std::vector<double> &probabilities) {_distribution = probabilities;}
         const std::vector<unsigned int> &conditioned() const {return _conditioned;}
         const std::vector<unsigned int> &conditioning() const {return _conditioning;}
+        bool uniform() const {return _uniform;}
         /* Modifiers*/
         void refine(unsigned int argument, bool positive, double coefficient);
         std::shared_ptr<Flock> marginalize(const std::vector<unsigned int> &args_to_keep) const;
@@ -42,22 +43,24 @@ namespace splittercell {
         std::vector<double> _distribution;
         std::unordered_map<unsigned int, unsigned int> _mapping;
         unsigned int _size;
+        bool _uniform;
 
         void map_arguments();
         std::vector<double> marginalized_distribution(const std::vector<unsigned int> &args_to_keep) const;
     };
 
     /********************** Implementation ************************/
-
     Flock::Flock(const std::vector<unsigned int> &args, const std::vector<unsigned int> &cond, const std::vector<double> &distribution) :
-            _conditioned(args), _conditioning(cond), _distribution(distribution), _size(args.size() + cond.size()) {
+            _conditioned(args), _conditioning(cond), _distribution(distribution), _size(args.size() + cond.size()), _uniform(false) {
         unsigned int limit = std::numeric_limits<unsigned int>::digits;
         if(_size > (limit - 2))
             throw std::overflow_error("Too many arguments in the flock.");
         unsigned int num_of_models = (unsigned int)(1 << _size);
-        double initial_belief      = 1.0 / (1 << _size);
-        if(_distribution.empty())
-            _distribution          = std::vector<double>(num_of_models, initial_belief);
+        double initial_belief      = 1.0 / num_of_models;
+        if(_distribution.empty()) {
+            _distribution = std::vector<double>(num_of_models, initial_belief);
+            _uniform      = true; //If the distribution is not uniform, we cannot cache 0.5 as a belief for the arguments in this flock
+        }
 
         map_arguments();
     }
@@ -152,16 +155,16 @@ namespace splittercell {
             for(unsigned int j = 0; j < start.size(); j++) {
                 auto indexes = splitindex[j];
                 if(indexes.first != 0)
-                    end1[indexes.first-1] = start[j];
+                    end1[indexes.first-1] = start[j]; //-1 because of +1 above
                 if(indexes.second != 0)
-                    end2[indexes.second-1] = start[j];
+                    end2[indexes.second-1] = start[j]; //-1 because of +1 above
             }
             combinedflock->_distribution[i] = _distribution[end1.to_ulong()] * flock->_distribution[end2.to_ulong()];
         }
         return combinedflock;
     }
 
-    /* Mapping argument <-> index to be (somewhat) order agnostic, conditioned first, then conditioning */
+    /* Mapping argument <-> index to be (somewhat) order agnostic, except conditioned first, then conditioning */
     void Flock::map_arguments() {
         unsigned int index = 0;
         for(unsigned int arg : _conditioned)
@@ -214,8 +217,11 @@ namespace splittercell {
                 if (_mapping.find(conditioned) != _mapping.end())
                     throw std::invalid_argument("An argument cannot be in different flocks.");
                 _mapping[conditioned] = flock_index;
-                _belief_cache[conditioned] = 0.5;
-                _cache_is_valid[conditioned] = true;
+                if(flock->uniform()) {
+                    _belief_cache[conditioned] = 0.5;
+                    _cache_is_valid[conditioned] = true;
+                } else
+                    _cache_is_valid[conditioned] = false;
             }
             flock_index++;
         }
@@ -255,12 +261,12 @@ namespace splittercell {
         for(auto arg : conditioning_args)
             conditioning_flocks.insert(_flocks[_mapping.at(arg)]);
 
-        std::deque<std::shared_ptr<Flock>> flock_deque(conditioning_flocks.cbegin(), conditioning_flocks.cend());
-        auto combined = flock_deque.front();
-        flock_deque.pop_front();
+        auto it = conditioning_flocks.cbegin();
+        auto combined = *it;
+        ++it;
         unsigned int limit = std::numeric_limits<unsigned int>::digits - 2;
-        while(!flock_deque.empty()) {
-            auto next = flock_deque.front();
+        while(it != conditioning_flocks.cend()) {
+            auto next = *it;
             if(combined->size() + next->size() > limit) {
                 auto all = std::vector<unsigned int>(arguments);
                 all.insert(all.cend(), conditioning_args.cbegin(), conditioning_args.cend());
@@ -268,7 +274,7 @@ namespace splittercell {
                 next = next->marginalize(all);
             }
             combined = combined->combine(next);
-            flock_deque.pop_front();
+            ++it;
         }
 
         return combined->marginalize(arguments);
