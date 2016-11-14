@@ -196,14 +196,14 @@ namespace splittercell {
         }
     }
 
-    void Flock::perform_mt(unsigned int bound, std::function<void(unsigned int, unsigned int)> t) const {
+    void Flock::perform_mt(unsigned int bound, std::function<void(unsigned int, unsigned int)> t) const {        
         unsigned int numThreads = std::thread::hardware_concurrency();
         unsigned int range = bound / numThreads;
-        std::vector<std::thread> threads;
+        std::vector<std::future<void>> futures;
         for(unsigned int i = 0; i < numThreads; i++)
-            threads.push_back(std::thread(t, i * range, (i + 1) * range));
-        for(auto &th : threads)
-            th.join();
+            futures.push_back(std::async(std::launch::async, t, i * range, (i + 1) * range));
+        for(auto &f : futures)
+          f.get();
     }
 
     /* Mapping argument <-> index to be (somewhat) order agnostic, except conditioned first, then conditioning */
