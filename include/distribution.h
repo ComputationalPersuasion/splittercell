@@ -12,6 +12,7 @@ namespace splittercell {
     public:
         /* Constructors */
         distribution(const std::vector<std::shared_ptr<flock>> &flocks);
+        distribution(const distribution &other);
         /* Accessors */
         std::unordered_map<unsigned int, double> operator[](const std::vector<unsigned int> &arguments) const;
         std::shared_ptr<flock> get_flock(unsigned int f) const {return _flocks[f];}

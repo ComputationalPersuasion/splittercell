@@ -21,6 +21,12 @@ namespace splittercell {
         }
     }
 
+    distribution::distribution(const distribution &other) : _mapping(other._mapping), _belief_cache(other._belief_cache),
+                                                            _cache_is_valid(other._cache_is_valid) {
+        for(auto f : other._flocks)
+          _flocks.push_back(std::make_shared<flock>(*f));
+    }
+
     std::unordered_map<unsigned int, double> distribution::operator[](const std::vector<unsigned int> &arguments) const {
         std::unordered_map<unsigned int, double> beliefs;
         std::shared_ptr<flock> f = nullptr;

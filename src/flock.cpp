@@ -21,6 +21,9 @@ namespace splittercell {
         map_arguments();
     }
 
+    flock::flock(const flock &other) : _conditioned(other._conditioned), _conditioning(other._conditioning), _distribution(other._distribution),
+                                       _mapping(other._mapping), _size(other._size), _uniform(other._uniform) {}
+
     std::string flock::to_str() const {
         std::stringstream ss;
         for (double val : _distribution) ss << val << " ";

@@ -13,6 +13,7 @@ namespace splittercell {
     public:
         /* Constructors */
         flock(const std::vector<unsigned int> &args, const std::vector<unsigned int> &cond = {}, const std::vector<double> &distribution = {});
+        flock(const flock &other);
         /* Accessors */
         unsigned int size() const {return _size;}
         const std::vector<double> &distribution() const {return _distribution;}
