@@ -8,3 +8,4 @@ CTestTestfile.cmake
 .idea
 tests/Testing
 tests/sctests
+libsplittercell.a

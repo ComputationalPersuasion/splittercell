@@ -10,18 +10,18 @@ using ::testing::StrEq;
 class DistributionTest: public ::testing::Test {
 public:
     virtual void SetUp() {
-        auto f1 = std::make_shared<splittercell::Flock>(std::vector<unsigned int>({0,1}));
-        dist = new splittercell::Distribution({f1});
+        auto f1 = std::make_shared<splittercell::flock>(std::vector<unsigned int>({0,1}));
+        dist = new splittercell::distribution({f1});
         dist->set_probabilities(0, {0.1, 0.2, 0.1, 0.6});
 
-        auto f2 = std::make_shared<splittercell::Flock>(std::vector<unsigned int>({0,1}), std::vector<unsigned int>({2}));
+        auto f2 = std::make_shared<splittercell::flock>(std::vector<unsigned int>({0,1}), std::vector<unsigned int>({2}));
         f2->set_probabilities({0.1, 0.0, 0.0, 0.2, 0.5, 0.0, 0.1, 0.1});
-        conditioned = new splittercell::Distribution({f2});
+        conditioned = new splittercell::distribution({f2});
 
-        auto f3 = std::make_shared<splittercell::Flock>(std::vector<unsigned int>({2,3}), std::vector<unsigned int>({4}));
-        auto f4 = std::make_shared<splittercell::Flock>(std::vector<unsigned int>({0,1}), std::vector<unsigned int>({2}));
-        auto f5 = std::make_shared<splittercell::Flock>(std::vector<unsigned int>({4}));
-        threeflocks = new splittercell::Distribution({f4, f3, f5});
+        auto f3 = std::make_shared<splittercell::flock>(std::vector<unsigned int>({2,3}), std::vector<unsigned int>({4}));
+        auto f4 = std::make_shared<splittercell::flock>(std::vector<unsigned int>({0,1}), std::vector<unsigned int>({2}));
+        auto f5 = std::make_shared<splittercell::flock>(std::vector<unsigned int>({4}));
+        threeflocks = new splittercell::distribution({f4, f3, f5});
         threeflocks->set_probabilities(0, {0.2, 0.0, 0.0, 0.8, 0.7, 0.0, 0.15, 0.15});
         threeflocks->set_probabilities(1, {0.2, 0.0, 0.0, 0.8, 0.7, 0.0, 0.15, 0.15});
     }
@@ -32,7 +32,7 @@ public:
         delete threeflocks;
     }
 
-    splittercell::Distribution *dist, *conditioned, *threeflocks;
+    splittercell::distribution *dist, *conditioned, *threeflocks;
 };
 
 TEST_F(DistributionTest, Refine1A) {
@@ -100,7 +100,7 @@ TEST_F(DistributionTest, MarginalizeAB) {
 }
 
 TEST_F(DistributionTest, Combine) {
-    auto m = threeflocks->flock(0)->combine(threeflocks->flock(1));
+    auto m = threeflocks->get_flock(0)->combine(threeflocks->get_flock(1));
     EXPECT_THAT(m->distribution(), ElementsAreArray({DoubleEq(0.04), DoubleEq(0.0), DoubleEq(0.0), DoubleEq(0.16),
                                      DoubleEq(0.0), DoubleEq(0.0), DoubleEq(0.0), DoubleEq(0),
                                      DoubleEq(0.0), DoubleEq(0.0), DoubleEq(0.0), DoubleEq(0.0),
@@ -147,7 +147,7 @@ TEST(StressTest, HugeRefinement) {
     std::vector<unsigned int> args;
     for(unsigned int i = 0; i < 25; i++)
         args.push_back(i);
-    splittercell::Flock f(args);
+    splittercell::flock f(args);
     f.refine(0, true, 1);
 }
 
@@ -155,7 +155,7 @@ TEST(StressTest, HugeMarginalization) {
     std::vector<unsigned int> args;
     for(unsigned int i = 0; i < 25; i++)
     args.push_back(i);
-    splittercell::Flock f(args);
+    splittercell::flock f(args);
     f.marginalize({0});
 }
 
@@ -165,7 +165,7 @@ TEST(StressTest, HugeCombination) {
         args1.push_back(i);
     for(unsigned int i = 12; i < 25; i++)
         args2.push_back(i);
-    splittercell::Flock f1(args1, std::vector<unsigned int>({12}));
-    auto f2 = std::make_shared<splittercell::Flock>(args2);
+    splittercell::flock f1(args1, std::vector<unsigned int>({12}));
+    auto f2 = std::make_shared<splittercell::flock>(args2);
     f1.combine(f2);
 }
