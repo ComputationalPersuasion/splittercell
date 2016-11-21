@@ -11,8 +11,8 @@ inline void set_bin_value(unsigned int &end, unsigned int i, unsigned int mask, 
 namespace splittercell {
     flock::flock(const std::vector<unsigned int> &args, const std::vector<unsigned int> &cond, const std::vector<double> &distribution) :
             _conditioned(args), _conditioning(cond), _distribution(distribution), _size(args.size() + cond.size()), _uniform(false) {
-        unsigned int limit = std::numeric_limits<unsigned int>::digits;
-        if(_size > (limit - 2))
+        unsigned int limit = std::numeric_limits<unsigned int>::digits - 2;
+        if(_size > limit)
             throw std::overflow_error("Too many arguments in the flock.");
         unsigned int num_of_models = (unsigned int)(1 << _size);
         double initial_belief      = 1.0 * (1 << _conditioning.size()) / num_of_models;
