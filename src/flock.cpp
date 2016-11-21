@@ -1,4 +1,3 @@
-#include <boost/dynamic_bitset.hpp>
 #include <algorithm>
 #include <stdexcept>
 #include <future>
