@@ -88,8 +88,8 @@ namespace splittercell {
         }
     }
 
-    std::shared_ptr<flock> flock::marginalize(const std::vector<unsigned int> &args_to_keep, bool mt) const {
-        return std::make_shared<flock>(args_to_keep, _conditioning, marginalized_distribution(args_to_keep, mt));
+    std::unique_ptr<flock> flock::marginalize(const std::vector<unsigned int> &args_to_keep, bool mt) const {
+        return std::make_unique<flock>(args_to_keep, _conditioning, marginalized_distribution(args_to_keep, mt));
     }
 
     void flock::marginalize_self(const std::vector<unsigned int> &args_to_keep, bool mt) {
@@ -98,7 +98,7 @@ namespace splittercell {
         map_arguments();
     }
 
-    std::shared_ptr<flock> flock::combine(const std::shared_ptr<flock> &f, bool mt) const {
+    std::unique_ptr<flock> flock::combine(const flock * const f, bool mt) const {
         /* Combined flock creation */
         std::vector<unsigned int> conditioned, conditioning;
         conditioned.insert(conditioned.end(), _conditioned.cbegin(), _conditioned.cend());
@@ -108,7 +108,7 @@ namespace splittercell {
                      [f](unsigned int i){return std::find(f->_conditioned.cbegin(), f->_conditioned.cend(), i) == f->_conditioned.cend();});
         std::copy_if(f->_conditioning.cbegin(), f->_conditioning.cend(), std::back_inserter(conditioning),
                      [this](unsigned int i){return std::find(this->_conditioned.cbegin(), this->_conditioned.cend(), i) == this->_conditioned.cend();});
-        auto combinedflock = std::make_shared<flock>(conditioned, conditioning);
+        auto combinedflock = std::make_unique<flock>(conditioned, conditioning);
         unsigned int limit = std::numeric_limits<unsigned int>::digits - 2;
         if(combinedflock->size() > limit)
             throw std::overflow_error("Too many arguments in the final combined flock.");
@@ -124,16 +124,17 @@ namespace splittercell {
             splitindex.emplace(combinedflock->_mapping[arg], std::make_pair<>(indexself, indexother));
         }
 
+        auto combinedptr = combinedflock.get();
         if(combinedflock->size() < 15 || !mt)
-            mt_combine(combinedflock, f, splitindex, 0, 1 << combinedflock->size());
+            mt_combine(combinedptr, f, splitindex, 0, 1 << combinedflock->size());
         else
-            perform_mt(combinedflock->distribution().size(),
-                       std::bind(&flock::mt_combine, this, std::cref(combinedflock), std::cref(f), std::cref(splitindex), std::placeholders::_1, std::placeholders::_2));
+            perform_mt(combinedflock->distribution().size(), std::bind(&flock::mt_combine, this, std::cref(combinedptr),
+                                                             std::cref(f), std::cref(splitindex), std::placeholders::_1, std::placeholders::_2));
 
         return combinedflock;
     }
 
-    void flock::mt_combine(const std::shared_ptr<flock> &combinedflock, const std::shared_ptr<flock> &f, const std::unordered_map<unsigned int,
+    void flock::mt_combine(flock * const combinedflock, const flock * const f, const std::unordered_map<unsigned int,
             std::pair<unsigned int, unsigned int>> &splitindex, unsigned int startindex, unsigned int endindex) const {
         for(unsigned int i = startindex; i < endindex; i++) {
             boost::dynamic_bitset<> start(combinedflock->size(), i), end1(_size, 0), end2(f->size(), 0);

@@ -17,15 +17,15 @@ namespace splittercell {
         /* Accessors */
         unsigned int size() const {return _size;}
         const std::vector<double> &distribution() const {return _distribution;}
-        void set_probabilities(const std::vector<double> &probabilities) {_distribution = probabilities;}
+        void set_probabilities(const std::vector<double> &probabilities) {_distribution = probabilities; _uniform = false;}
         const std::vector<unsigned int> &conditioned() const {return _conditioned;}
         const std::vector<unsigned int> &conditioning() const {return _conditioning;}
         bool uniform() const {return _uniform;}
         /* Modifiers*/
         void refine(unsigned int argument, bool positive, double coefficient, bool mt = true);
-        std::shared_ptr<flock> marginalize(const std::vector<unsigned int> &args_to_keep, bool mt = true) const;
+        std::unique_ptr<flock> marginalize(const std::vector<unsigned int> &args_to_keep, bool mt = true) const;
         void marginalize_self(const std::vector<unsigned int> &args_to_keep, bool mt = true);
-        std::shared_ptr<flock> combine(const std::shared_ptr<flock> &f, bool mt = true) const;
+        std::unique_ptr<flock> combine(const flock * const f, bool mt = true) const;
 
         std::string to_str() const;
         bool operator==(const flock &other) const {return (_conditioned == other._conditioned) &&
@@ -42,7 +42,7 @@ namespace splittercell {
         std::vector<double> marginalized_distribution(const std::vector<unsigned int> &args_to_keep, bool mt) const;
         void mt_refine(unsigned int index, bool positive, double coefficient, unsigned int startindex, unsigned int endindex);
         void mt_marginalize(std::vector<double> &distribution, const std::map<unsigned int, unsigned int> &mapping, unsigned int startindex, unsigned int endindex) const;
-        void mt_combine(const std::shared_ptr<flock> &combinedflock, const std::shared_ptr<flock> &f, const std::unordered_map<unsigned int,
+        void mt_combine(flock * const combinedflock, const flock * const f, const std::unordered_map<unsigned int,
                 std::pair<unsigned int, unsigned int>> &splitindex, unsigned int startindex, unsigned int endindex) const;
         void perform_mt(unsigned int bound, std::function<void(unsigned int, unsigned int)> t) const;
     };
