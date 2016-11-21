@@ -156,7 +156,7 @@ TEST(StressTest, HugeRefinement) {
     for(unsigned int i = 0; i < 25; i++)
         args.push_back(i);
     splittercell::flock f(args);
-    f.refine(0, true, 1);
+    f.refine(0, true, 1, false);
 }
 
 TEST(StressTest, HugeMarginalization) {
@@ -164,10 +164,37 @@ TEST(StressTest, HugeMarginalization) {
     for(unsigned int i = 0; i < 25; i++)
     args.push_back(i);
     splittercell::flock f(args);
-    f.marginalize({0});
+    f.marginalize({0}, false);
 }
 
 TEST(StressTest, HugeCombination) {
+    std::vector<unsigned int> args1, args2;
+    for(unsigned int i = 0; i < 12; i++)
+        args1.push_back(i);
+    for(unsigned int i = 12; i < 25; i++)
+        args2.push_back(i);
+    splittercell::flock f1(args1, std::vector<unsigned int>({12}));
+    auto f2 = std::make_unique<splittercell::flock>(args2);
+    f1.combine(f2.get(), false);
+}
+
+TEST(StressTestMT, HugeRefinement) {
+    std::vector<unsigned int> args;
+    for(unsigned int i = 0; i < 25; i++)
+        args.push_back(i);
+    splittercell::flock f(args);
+    f.refine(0, true, 1);
+}
+
+TEST(StressTestMT, HugeMarginalization) {
+    std::vector<unsigned int> args;
+    for(unsigned int i = 0; i < 25; i++)
+    args.push_back(i);
+    splittercell::flock f(args);
+    f.marginalize({0});
+}
+
+TEST(StressTestMT, HugeCombination) {
     std::vector<unsigned int> args1, args2;
     for(unsigned int i = 0; i < 12; i++)
         args1.push_back(i);

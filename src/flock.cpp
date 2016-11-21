@@ -5,6 +5,10 @@
 #include <sstream>
 #include "flock.h"
 
+inline void set_bin_value(unsigned int &end, unsigned int i, unsigned int mask, unsigned int where) {
+      end |= ((bool)(i & (1 << mask)) << where);
+}
+
 namespace splittercell {
     flock::flock(const std::vector<unsigned int> &args, const std::vector<unsigned int> &cond, const std::vector<double> &distribution) :
             _conditioned(args), _conditioning(cond), _distribution(distribution), _size(args.size() + cond.size()), _uniform(false) {
@@ -38,15 +42,14 @@ namespace splittercell {
             throw std::invalid_argument("Only conditioned arguments can be refined.");
         if(_size < 15 || !mt)
             mt_refine(index, positive, coefficient, 0, _distribution.size());
-        else
+        else //Beware of the potential race condition
             perform_mt(_distribution.size(), std::bind(&flock::mt_refine, this, index, positive, coefficient, std::placeholders::_1, std::placeholders::_2));
     }
 
     void flock::mt_refine(unsigned int index, bool positive, double coefficient, unsigned int startindex, unsigned int endindex) {
         for (unsigned int i = startindex; i < endindex; i++) {
-            boost::dynamic_bitset<> binary(_size, i); //Current model in binary notation
-            if (binary.test(index) == positive) { //If the model satisfies argument+side of update
-                unsigned int opposite = (unsigned int) binary.flip(index).to_ulong(); //Closest model not satisfying
+            if((bool)(i & (1 << index)) == positive) { //If the model satisfies argument+side of update
+                unsigned int opposite = i ^ (1 << index); //Closest model not satisfying
                 double opposite_val = _distribution[opposite];
                 _distribution[opposite] *= (1 - coefficient);
                 _distribution[i] += coefficient * opposite_val;
@@ -73,7 +76,7 @@ namespace splittercell {
 
         if(_size < 15 || !mt)
             mt_marginalize(distribution, mapping, 0, _distribution.size());
-        else
+        else //Beware of the race condition
             perform_mt(_distribution.size(), std::bind(&flock::mt_marginalize, this, std::ref(distribution), std::cref(mapping), std::placeholders::_1, std::placeholders::_2));
 
         return distribution;
@@ -81,10 +84,10 @@ namespace splittercell {
 
     void flock::mt_marginalize(std::vector<double> &distribution, const std::map<unsigned int, unsigned int> &mapping, unsigned int startindex, unsigned int endindex) const {
         for(unsigned int i = startindex; i < endindex; i++) {
-            boost::dynamic_bitset<> start(_size, i), end(mapping.size(), 0);
+            unsigned int end = 0;
             for(auto map : mapping)
-                end.set(map.second, start[map.first]);
-            distribution[end.to_ulong()] += _distribution[i];
+                set_bin_value(end, i, map.first, map.second);
+            distribution[end] += _distribution[i];
         }
     }
 
@@ -114,14 +117,15 @@ namespace splittercell {
             throw std::overflow_error("Too many arguments in the final combined flock.");
 
         /* Mapping between combined flock indexes and split flock index */
-        std::unordered_map<unsigned int, std::pair<unsigned int, unsigned int>> splitindex;
         conditioned.insert(conditioned.end(), conditioning.cbegin(), conditioning.cend()); //Just to have the whole set of arguments
+        std::vector<std::pair<unsigned int, unsigned int>> splitindex;
+        splitindex.resize(conditioned.size());
         for(auto arg : conditioned) {
             auto itindexself = _mapping.find(arg);
             unsigned int indexself = (itindexself == _mapping.end()) ? 0 : itindexself->second + 1; //Careful, mandatory to keep unsigned
             auto itindexother = f->_mapping.find(arg);
             unsigned int indexother = (itindexother == f->_mapping.end()) ? 0 : itindexother->second + 1; //Careful
-            splitindex.emplace(combinedflock->_mapping[arg], std::make_pair<>(indexself, indexother));
+            splitindex[combinedflock->_mapping[arg]] = std::make_pair<>(indexself, indexother);
         }
 
         auto combinedptr = combinedflock.get();
@@ -134,18 +138,17 @@ namespace splittercell {
         return combinedflock;
     }
 
-    void flock::mt_combine(flock * const combinedflock, const flock * const f, const std::unordered_map<unsigned int,
-            std::pair<unsigned int, unsigned int>> &splitindex, unsigned int startindex, unsigned int endindex) const {
+    void flock::mt_combine(flock * const combinedflock, const flock * const f, const std::vector<std::pair<unsigned int, unsigned int>> &splitindex, unsigned int startindex, unsigned int endindex) const {
         for(unsigned int i = startindex; i < endindex; i++) {
-            boost::dynamic_bitset<> start(combinedflock->size(), i), end1(_size, 0), end2(f->size(), 0);
-            for(unsigned int j = 0; j < start.size(); j++) {
-                auto indexes = splitindex.at(j);
+            unsigned int end1 = 0, end2 = 0;
+            for(unsigned int j = 0; j < combinedflock->size(); j++) {
+                auto indexes = splitindex[j];
                 if(indexes.first != 0)
-                    end1[indexes.first-1] = start[j]; //-1 because of +1 above
+                    set_bin_value(end1, i, j, indexes.first-1); //-1 because +1 above
                 if(indexes.second != 0)
-                    end2[indexes.second-1] = start[j]; //-1 because of +1 above
+                    set_bin_value(end2, i, j, indexes.second-1); //-1 because +1 above
             }
-            combinedflock->_distribution[i] = _distribution[end1.to_ulong()] * f->_distribution[end2.to_ulong()];
+            combinedflock->_distribution[i] = _distribution[end1] * f->_distribution[end2];
         }
     }
 
