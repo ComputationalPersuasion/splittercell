@@ -24,11 +24,11 @@ namespace splittercell {
         void disable_mt() {_mt = false;}
         /* Modifiers */
         void refine(unsigned int argument, bool positive, double coefficient) {
-            _flocks[_mapping[argument]]->refine(argument, positive, coefficient, _mt);
+            _flocks[_mapping[argument]]->refine(argument, positive, coefficient);
             _cache_is_valid[argument] = false;
         }
         std::unique_ptr<flock> marginalize(unsigned int f, const std::vector<unsigned int> &args_to_keep) {
-            return _flocks[f]->marginalize(args_to_keep, _mt);
+            return _flocks[f]->marginalize(args_to_keep);
         }
 
         std::string to_str() const;

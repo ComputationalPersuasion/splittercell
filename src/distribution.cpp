@@ -36,7 +36,7 @@ namespace splittercell {
             else {
                 if(f == nullptr)
                     f = find_and_combine(arguments);
-                beliefs[arg] = f->marginalize({arg}, _mt)->distribution()[1];
+                beliefs[arg] = f->marginalize({arg})->distribution()[1];
             }
         }
 
@@ -71,9 +71,9 @@ namespace splittercell {
             if(combined->size() + next->size() > limit) {
                 auto all = std::vector<unsigned int>(arguments);
                 all.insert(all.cend(), conditioning_args.cbegin(), conditioning_args.cend());
-                ptrcombined = combined->marginalize(all, _mt);
+                ptrcombined = combined->marginalize(all);
                 combined = ptrcombined.get();
-                ptrnext = next->marginalize(all, _mt);
+                ptrnext = next->marginalize(all);
                 next = ptrnext.get();
             }
             ptrcombined = combined->combine(next, _mt);
@@ -81,7 +81,7 @@ namespace splittercell {
             ++it;
         }
 
-        return combined->marginalize(arguments, _mt);
+        return combined->marginalize(arguments);
     }
 
     std::string distribution::to_str() const {

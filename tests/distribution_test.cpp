@@ -156,7 +156,7 @@ TEST(StressTest, HugeRefinement) {
     for(unsigned int i = 0; i < 25; i++)
         args.push_back(i);
     splittercell::flock f(args);
-    f.refine(0, true, 1, false);
+    f.refine(0, true, 1);
 }
 
 TEST(StressTest, HugeMarginalization) {
@@ -164,7 +164,7 @@ TEST(StressTest, HugeMarginalization) {
     for(unsigned int i = 0; i < 25; i++)
     args.push_back(i);
     splittercell::flock f(args);
-    f.marginalize({0}, false);
+    f.marginalize({0});
 }
 
 TEST(StressTest, HugeCombination) {
