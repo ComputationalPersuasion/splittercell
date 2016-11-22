@@ -40,8 +40,6 @@ namespace splittercell {
 
         void map_arguments();
         std::vector<double> marginalized_distribution(const std::vector<unsigned int> &args_to_keep, bool mt) const;
-        void mt_refine(unsigned int index, bool positive, double coefficient, unsigned int startindex, unsigned int endindex);
-        void mt_marginalize(std::vector<double> &distribution, const std::map<unsigned int, unsigned int> &mapping, unsigned int startindex, unsigned int endindex) const;
         void mt_combine(flock * const combinedflock, const flock * const f, const std::vector<std::pair<unsigned int, unsigned int>> &splitindex, unsigned int startindex, unsigned int endindex) const;
         void perform_mt(unsigned int bound, std::function<void(unsigned int, unsigned int)> t) const;
     };

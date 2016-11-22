@@ -178,22 +178,6 @@ TEST(StressTest, HugeCombination) {
     f1.combine(f2.get(), false);
 }
 
-TEST(StressTestMT, HugeRefinement) {
-    std::vector<unsigned int> args;
-    for(unsigned int i = 0; i < 25; i++)
-        args.push_back(i);
-    splittercell::flock f(args);
-    f.refine(0, true, 1);
-}
-
-TEST(StressTestMT, HugeMarginalization) {
-    std::vector<unsigned int> args;
-    for(unsigned int i = 0; i < 25; i++)
-    args.push_back(i);
-    splittercell::flock f(args);
-    f.marginalize({0});
-}
-
 TEST(StressTestMT, HugeCombination) {
     std::vector<unsigned int> args1, args2;
     for(unsigned int i = 0; i < 12; i++)

@@ -14,8 +14,8 @@ namespace splittercell {
         unsigned int limit = std::numeric_limits<unsigned int>::digits - 2;
         if(_size > limit)
             throw std::overflow_error("Too many arguments in the flock.");
-        unsigned int num_of_models = (unsigned int)(1 << _size);
-        double initial_belief      = 1.0 * (1 << _conditioning.size()) / num_of_models;
+        unsigned int num_of_models = (1U << _size);
+        double initial_belief      = 1.0 * (1U << _conditioning.size()) / num_of_models;
         if(_distribution.empty()) {
             _distribution = std::vector<double>(num_of_models, initial_belief);
             _uniform      = true; //If the distribution is not uniform, we cannot cache 0.5 as a belief for the arguments in this flock
@@ -39,18 +39,11 @@ namespace splittercell {
         unsigned int index = _mapping[argument];
         if(index >= _conditioned.size())
             throw std::invalid_argument("Only conditioned arguments can be refined.");
-        if(_size < 15 || !mt)
-            mt_refine(index, positive, coefficient, 0, _distribution.size());
-        else //Beware of the potential race condition
-            perform_mt(_distribution.size(), std::bind(&flock::mt_refine, this, index, positive, coefficient, std::placeholders::_1, std::placeholders::_2));
-    }
-
-    void flock::mt_refine(unsigned int index, bool positive, double coefficient, unsigned int startindex, unsigned int endindex) {
-        for (unsigned int i = startindex; i < endindex; i++) {
-            if((bool)(i & (1 << index)) == positive) { //If the model satisfies argument+side of update
-                unsigned int opposite = i ^ (1 << index); //Closest model not satisfying
+        for (unsigned int i = 0; i < _distribution.size(); i++) {
+            if((bool)(i & (1U << index)) == positive) { //If the model satisfies argument+side of update
+                unsigned int opposite = i ^ (1U << index); //Closest model not satisfying
                 double opposite_val = _distribution[opposite];
-                _distribution[opposite] *= (1 - coefficient);
+                _distribution[opposite] *= (1U - coefficient);
                 _distribution[i] += coefficient * opposite_val;
             }
         }
@@ -70,24 +63,16 @@ namespace splittercell {
                 mapping[_mapping.at(arg)] = index++;
 
         /* Actual marginalization */
-        unsigned int marginalized_size = (unsigned int)(1 << mapping.size());
+        unsigned int marginalized_size = (unsigned int)(1U << mapping.size());
         auto distribution = std::vector<double>(marginalized_size, 0.0);
-
-        if(_size < 15 || !mt)
-            mt_marginalize(distribution, mapping, 0, _distribution.size());
-        else //Beware of the race condition
-            perform_mt(_distribution.size(), std::bind(&flock::mt_marginalize, this, std::ref(distribution), std::cref(mapping), std::placeholders::_1, std::placeholders::_2));
-
-        return distribution;
-    }
-
-    void flock::mt_marginalize(std::vector<double> &distribution, const std::map<unsigned int, unsigned int> &mapping, unsigned int startindex, unsigned int endindex) const {
-        for(unsigned int i = startindex; i < endindex; i++) {
+        for(unsigned int i = 0; i < _distribution.size(); i++) {
             unsigned int end = 0;
             for(auto map : mapping)
                 set_bin_value(end, i, map.first, map.second);
             distribution[end] += _distribution[i];
         }
+
+        return distribution;
     }
 
     std::unique_ptr<flock> flock::marginalize(const std::vector<unsigned int> &args_to_keep, bool mt) const {
@@ -129,7 +114,7 @@ namespace splittercell {
 
         auto combinedptr = combinedflock.get();
         if(combinedflock->size() < 15 || !mt)
-            mt_combine(combinedptr, f, splitindex, 0, 1 << combinedflock->size());
+            mt_combine(combinedptr, f, splitindex, 0, combinedflock->distribution().size());
         else
             perform_mt(combinedflock->distribution().size(), std::bind(&flock::mt_combine, this, std::cref(combinedptr),
                                                              std::cref(f), std::cref(splitindex), std::placeholders::_1, std::placeholders::_2));
