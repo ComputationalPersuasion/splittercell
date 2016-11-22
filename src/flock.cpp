@@ -35,7 +35,7 @@ namespace splittercell {
         return s;
     }
 
-    void flock::refine(unsigned int argument, bool positive, double coefficient, bool mt) {
+    void flock::refine(unsigned int argument, bool positive, double coefficient) {
         unsigned int index = _mapping[argument];
         if(index >= _conditioned.size())
             throw std::invalid_argument("Only conditioned arguments can be refined.");
@@ -49,7 +49,7 @@ namespace splittercell {
         }
     }
 
-    std::vector<double> flock::marginalized_distribution(const std::vector<unsigned int> &args_to_keep, bool mt) const {
+    std::vector<double> flock::marginalized_distribution(const std::vector<unsigned int> &args_to_keep) const {
         /* New mapping creation (because marginalization put holes in the previous one) */
         unsigned int index = 0;
         std::map<unsigned int, unsigned int> mapping;
@@ -75,13 +75,13 @@ namespace splittercell {
         return distribution;
     }
 
-    std::unique_ptr<flock> flock::marginalize(const std::vector<unsigned int> &args_to_keep, bool mt) const {
-        return std::make_unique<flock>(args_to_keep, _conditioning, marginalized_distribution(args_to_keep, mt));
+    std::unique_ptr<flock> flock::marginalize(const std::vector<unsigned int> &args_to_keep) const {
+        return std::make_unique<flock>(args_to_keep, _conditioning, marginalized_distribution(args_to_keep));
     }
 
-    void flock::marginalize_self(const std::vector<unsigned int> &args_to_keep, bool mt) {
+    void flock::marginalize_self(const std::vector<unsigned int> &args_to_keep) {
         _conditioned  = args_to_keep;
-        _distribution = marginalized_distribution(args_to_keep, mt);
+        _distribution = marginalized_distribution(args_to_keep);
         map_arguments();
     }
 

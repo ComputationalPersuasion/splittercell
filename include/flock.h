@@ -22,9 +22,9 @@ namespace splittercell {
         const std::vector<unsigned int> &conditioning() const {return _conditioning;}
         bool uniform() const {return _uniform;}
         /* Modifiers*/
-        void refine(unsigned int argument, bool positive, double coefficient, bool mt = true);
-        std::unique_ptr<flock> marginalize(const std::vector<unsigned int> &args_to_keep, bool mt = true) const;
-        void marginalize_self(const std::vector<unsigned int> &args_to_keep, bool mt = true);
+        void refine(unsigned int argument, bool positive, double coefficient);
+        std::unique_ptr<flock> marginalize(const std::vector<unsigned int> &args_to_keep) const;
+        void marginalize_self(const std::vector<unsigned int> &args_to_keep);
         std::unique_ptr<flock> combine(const flock * const f, bool mt = true) const;
 
         std::string to_str() const;
