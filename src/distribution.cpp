@@ -28,16 +28,19 @@ namespace splittercell {
     }
 
     std::unordered_map<unsigned int, double> distribution::operator[](const std::vector<unsigned int> &arguments) const {
+        std::set<unsigned int> args_for_combine(arguments.cbegin(), arguments.cend());
         std::unordered_map<unsigned int, double> beliefs;
         std::unique_ptr<flock> f = nullptr;
-        for(auto arg : arguments) {
-            if(_cache_is_valid.at(arg))
+        for(auto arg : arguments)
+            if(_cache_is_valid.at(arg)) {
                 beliefs[arg] = _belief_cache.at(arg);
-            else {
-                if(f == nullptr)
-                    f = find_and_combine(arguments);
-                beliefs[arg] = f->marginalize({arg})->distribution()[1];
+                args_for_combine.erase(arg);
             }
+            
+        for(auto arg : args_for_combine) {
+            if(f == nullptr)
+                f = find_and_combine(std::vector<unsigned int>(args_for_combine.cbegin(), args_for_combine.cend()));
+            beliefs[arg] = f->marginalize({arg})->distribution()[1];
         }
 
         return beliefs;
