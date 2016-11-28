@@ -27,7 +27,7 @@ namespace splittercell {
             _flocks.push_back(std::make_unique<flock>(*f));
     }
 
-    std::unordered_map<unsigned int, double> distribution::operator[](const std::vector<unsigned int> &arguments) const {
+    std::unordered_map<unsigned int, double> distribution::operator[](const std::vector<unsigned int> &arguments) {
         std::set<unsigned int> args_for_combine(arguments.cbegin(), arguments.cend());
         std::unordered_map<unsigned int, double> beliefs;
         std::unique_ptr<flock> f = nullptr;
@@ -36,11 +36,16 @@ namespace splittercell {
                 beliefs[arg] = _belief_cache.at(arg);
                 args_for_combine.erase(arg);
             }
-            
+
         for(auto arg : args_for_combine) {
             if(f == nullptr)
                 f = find_and_combine(std::vector<unsigned int>(args_for_combine.cbegin(), args_for_combine.cend()));
             beliefs[arg] = f->marginalize({arg})->distribution()[1];
+        }
+
+        for(auto b : beliefs) {
+            _cache_is_valid[b.first] = true;
+            _belief_cache[b.first]   = b.second;
         }
 
         return beliefs;

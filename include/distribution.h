@@ -14,7 +14,7 @@ namespace splittercell {
         distribution(std::vector<std::unique_ptr<flock>> &flocks);
         distribution(const distribution &other);
         /* Accessors */
-        std::unordered_map<unsigned int, double> operator[](const std::vector<unsigned int> &arguments) const;
+        std::unordered_map<unsigned int, double> operator[](const std::vector<unsigned int> &arguments);
         flock* get_flock(unsigned int f) const {return _flocks[f].get();}
         void set_probabilities(unsigned int f, const std::vector<double> &probabilities) {
             _flocks[f]->set_probabilities(probabilities);
