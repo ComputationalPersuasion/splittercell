@@ -32,15 +32,22 @@ public:
         threeflocks = new splittercell::distribution(v3);
         threeflocks->set_probabilities(0, {0.2, 0.0, 0.0, 0.8, 0.7, 0.0, 0.15, 0.15});
         threeflocks->set_probabilities(1, {0.2, 0.0, 0.0, 0.8, 0.7, 0.0, 0.15, 0.15});
+
+        auto f6 = std::make_unique<splittercell::flock>(std::vector<unsigned int>({0,1,2}));
+        std::vector<std::unique_ptr<splittercell::flock>> v4;
+        v4.push_back(std::move(f6));
+        fast = new splittercell::distribution(v4);
+        fast->set_probabilities(0, {0.0, 0.0, 0.25, 0.25, 0, 0, 0.25, 0.25, 0});
     }
 
     virtual void TearDown() {
         delete dist;
         delete conditioned;
         delete threeflocks;
+        delete fast;
     }
 
-    splittercell::distribution *dist, *conditioned, *threeflocks;
+    splittercell::distribution *dist, *conditioned, *threeflocks, *fast;
 };
 
 TEST_F(DistributionTest, Refine1A) {
@@ -149,6 +156,20 @@ TEST_F(DistributionTest, ThreeSplitC) {
 
 TEST_F(DistributionTest, ThreeSplitE) {
     EXPECT_THAT(threeflocks->operator[]({4})[4], DoubleEq(0.5));
+}
+
+TEST_F(DistributionTest, FastUpdate) {
+    auto b = fast->operator[]({0,1,2});
+    EXPECT_THAT(b[0], DoubleEq(0.5));
+    EXPECT_THAT(b[1], DoubleEq(1));
+    EXPECT_THAT(b[2], DoubleEq(0.5));
+    fast->fast_refine(2, true, 0.75);
+    fast->fast_refine(1, false, 0.75);
+    fast->fast_refine(0, true, 0.75);
+    b = fast->operator[]({0,1,2});
+    EXPECT_THAT(b[0], DoubleEq(0.875));
+    EXPECT_THAT(b[1], DoubleEq(0.25));
+    EXPECT_THAT(b[2], DoubleEq(0.875));
 }
 
 TEST(StressTest, HugeRefinement) {

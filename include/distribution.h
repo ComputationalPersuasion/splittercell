@@ -27,6 +27,14 @@ namespace splittercell {
             _flocks[_mapping[argument]]->refine(argument, positive, coefficient);
             _cache_is_valid[argument] = false;
         }
+        void fast_refine(unsigned int argument, bool positive, double coefficient) {
+          if(!_cache_is_valid[argument])
+              throw std::invalid_argument("Cannot fast update " + std::to_string(argument) + " cache is invalid.");
+          if(positive)
+              _belief_cache[argument] += coefficient * (1 - _belief_cache[argument]);
+          else
+              _belief_cache[argument] *= (1 - coefficient);
+        }
         std::unique_ptr<flock> marginalize(unsigned int f, const std::vector<unsigned int> &args_to_keep) {
             return _flocks[f]->marginalize(args_to_keep);
         }
