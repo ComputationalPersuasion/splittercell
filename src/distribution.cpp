@@ -12,12 +12,19 @@ namespace splittercell {
                     throw std::invalid_argument("An argument cannot be in different flocks.");
                 _mapping[conditioned] = flock_index;
                 if(f->uniform()) {
-                    _belief_cache[conditioned] = 0.5;
+                    _belief_cache[conditioned]   = 0.5;
                     _cache_is_valid[conditioned] = true;
                 } else
                     _cache_is_valid[conditioned] = false;
             }
             flock_index++;
+        }
+    }
+
+    distribution::distribution(const std::vector<unsigned int> &arguments) : _mt(true) {
+        for(auto a : arguments) {
+            _belief_cache[a]   = 0.5;
+            _cache_is_valid[a] = true;
         }
     }
 

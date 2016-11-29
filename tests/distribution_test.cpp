@@ -38,6 +38,9 @@ public:
         v4.push_back(std::move(f6));
         fast = new splittercell::distribution(v4);
         fast->set_probabilities(0, {0.0, 0.0, 0.25, 0.25, 0, 0, 0.25, 0.25, 0});
+
+        std::vector<unsigned int> v5({0,1,2,3});
+        empty = new splittercell::distribution(v5);
     }
 
     virtual void TearDown() {
@@ -47,7 +50,7 @@ public:
         delete fast;
     }
 
-    splittercell::distribution *dist, *conditioned, *threeflocks, *fast;
+    splittercell::distribution *dist, *conditioned, *threeflocks, *fast, *empty;
 };
 
 TEST_F(DistributionTest, Refine1A) {
@@ -170,6 +173,17 @@ TEST_F(DistributionTest, FastUpdate) {
     EXPECT_THAT(b[0], DoubleEq(0.875));
     EXPECT_THAT(b[1], DoubleEq(0.25));
     EXPECT_THAT(b[2], DoubleEq(0.875));
+}
+
+TEST_F(DistributionTest, EmptyDistribution) {
+    auto b = empty->operator[]({0,1,2,3});
+    EXPECT_THAT(b[0], DoubleEq(0.5));
+    EXPECT_THAT(b[1], DoubleEq(0.5));
+    EXPECT_THAT(b[2], DoubleEq(0.5));
+    EXPECT_THAT(b[3], DoubleEq(0.5));
+    empty->fast_refine(0, true, 0.75);
+    b = empty->operator[]({0});
+    EXPECT_THAT(b[0], DoubleEq(0.875));
 }
 
 TEST(StressTest, HugeRefinement) {
