@@ -21,9 +21,13 @@ namespace splittercell {
         }
     }
 
-    distribution::distribution(const std::vector<unsigned int> &arguments) : _mt(true) {
+    distribution::distribution(const std::vector<unsigned int> &arguments, const std::unordered_map<unsigned int, double> &initial) : _mt(true) {
         for(auto a : arguments) {
-            _belief_cache[a]   = 0.5;
+            auto it = initial.find(a);
+            if(it == initial.cend())
+              _belief_cache[a] = 0.5;
+            else
+              _belief_cache[a] = it->second;
             _cache_is_valid[a] = true;
         }
     }
