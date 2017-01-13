@@ -4,7 +4,7 @@
 #include "distribution.h"
 
 namespace splittercell {
-    distribution::distribution(std::vector<std::unique_ptr<flock>> &flocks) : _flocks(std::move(flocks)), _mt(true) {
+    distribution::distribution(std::vector<std::unique_ptr<flock>> &flocks, bool mt) : _flocks(std::move(flocks)), _mt(mt) {
         unsigned int flock_index = 0;
         for (auto &f : _flocks) {
             for (auto conditioned : f->conditioned()) {
@@ -21,7 +21,7 @@ namespace splittercell {
         }
     }
 
-    distribution::distribution(const std::vector<unsigned int> &arguments, const std::unordered_map<unsigned int, double> &initial) : _mt(true) {
+    distribution::distribution(const std::vector<unsigned int> &arguments, const std::unordered_map<unsigned int, double> &initial, bool mt) : _mt(mt) {
         for(auto a : arguments) {
             auto it = initial.find(a);
             if(it == initial.cend())
@@ -33,7 +33,7 @@ namespace splittercell {
     }
 
     distribution::distribution(const distribution &other) : _mapping(other._mapping), _belief_cache(other._belief_cache),
-                                                            _cache_is_valid(other._cache_is_valid) {
+                                                            _cache_is_valid(other._cache_is_valid), _mt(other._mt) {
         for(auto &f : other._flocks)
             _flocks.push_back(std::make_unique<flock>(*f));
     }

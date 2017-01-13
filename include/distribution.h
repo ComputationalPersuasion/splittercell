@@ -11,8 +11,8 @@ namespace splittercell {
     class distribution {
     public:
         /* Constructors */
-        distribution(std::vector<std::unique_ptr<flock>> &flocks);
-        distribution(const std::vector<unsigned int> &arguments, const std::unordered_map<unsigned int, double> &initial = {});
+        distribution(std::vector<std::unique_ptr<flock>> &flocks, bool mt = true);
+        distribution(const std::vector<unsigned int> &arguments, const std::unordered_map<unsigned int, double> &initial = {}, bool mt = true);
         distribution(const distribution &other);
         /* Accessors */
         std::unordered_map<unsigned int, double> operator[](const std::vector<unsigned int> &arguments);
